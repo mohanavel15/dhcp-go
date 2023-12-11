@@ -30,7 +30,7 @@ type Message struct {
 	Sname       [64]byte
 	File        [128]byte
 	MagicCookie [4]byte
-	Options     []DHCPOption
+	Options     DhcpOpts
 }
 
 func (m *Message) String() string {
@@ -98,13 +98,12 @@ func UnpackMessage(buf []byte) Message {
 		Sname:       [64]byte(buf[44:108]),
 		File:        [128]byte(buf[108:236]),
 		MagicCookie: [4]byte(buf[236:240]),
-		Options:     []DHCPOption{},
+		Options:     []DhcpOpt{},
 	}
 
 	idx := 240
 	for idx < len(buf) {
-		option := DHCPOption{}
-
+		option := DhcpOpt{}
 		option.Type = buf[idx]
 		if option.Type == uint8(End) {
 			break
@@ -114,8 +113,7 @@ func UnpackMessage(buf []byte) Message {
 		eop := idx + 2 + int(option.Length)
 
 		option.Data = buf[idx+2 : eop]
-
-		idx += eop
+		idx = eop
 		m.Options = append(m.Options, option)
 	}
 
@@ -138,10 +136,10 @@ func PackMessage(m Message) []byte {
 	buf = append(buf, byte(m.Flags>>8))
 	buf = append(buf, byte(m.Flags))
 
-	buf = append(buf, m.Ciaddr[12:]...)
-	buf = append(buf, m.Yiaddr[12:]...)
-	buf = append(buf, m.Siaddr[12:]...)
-	buf = append(buf, m.Giaddr[12:]...)
+	buf = append(buf, m.Ciaddr.To4()...)
+	buf = append(buf, m.Yiaddr.To4()...)
+	buf = append(buf, m.Siaddr.To4()...)
+	buf = append(buf, m.Giaddr.To4()...)
 	buf = append(buf, m.Chaddr...)
 	buf = append(buf, make([]byte, 10)...)
 
