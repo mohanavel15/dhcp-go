@@ -2,11 +2,24 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os"
 )
 
 func main() {
+	config := LoadConfig("./dhcp-config.json")
+
+	allocator := NewAllocator([]net.IP{
+		net.IPv4(10, 10, 10, 2),
+		net.IPv4(10, 10, 10, 3),
+		net.IPv4(10, 10, 10, 4),
+		net.IPv4(10, 10, 10, 5),
+	})
+	go allocator.Clock()
+
+	DhcpServer := NewDHCPServer(&config, allocator)
+
 	addr, err := net.ResolveUDPAddr("udp", ":67")
 	if err != nil {
 		fmt.Println("Error resolving UDP address:", err)
@@ -22,31 +35,30 @@ func main() {
 
 	fmt.Println("UDP server is listening on port 67...")
 
-	buffer := make([]byte, 576)
 	for {
+		buffer := make([]byte, 576)
 		n, addr, err := conn.ReadFromUDP(buffer)
 		if err != nil {
 			fmt.Println("Error reading UDP packet:", err)
 			continue
 		}
 
-		fmt.Printf("Received %d bytes from %s\n", n, addr.String())
 		msg := UnpackMessage(buffer[:n])
-		fmt.Println(msg.String())
+		// fmt.Println(msg.String())
 
-		res, err := handleMessage(&msg)
+		res, err := DhcpServer.Handle(&msg)
 		if err != nil {
+			log.Println(err.Error())
 			continue
 		}
+
+		log.Printf("%s allocated to %s for %ds\n", res.Yiaddr.String(), res.Chaddr.String(), config.LeaseTime)
 		resbuf := PackMessage(res)
 
-		fmt.Println("Sending response...")
-
-		ToIP := addr.IP
-		if ToIP.Equal(net.IPv4zero) {
-			ToIP = net.IPv4bcast
+		if addr.IP.IsUnspecified() {
+			addr.IP = net.IPv4(10, 255, 255, 255)
 		}
 
-		conn.WriteToUDP(resbuf, &net.UDPAddr{IP: ToIP, Port: 68})
+		conn.WriteToUDP(resbuf, addr)
 	}
 }

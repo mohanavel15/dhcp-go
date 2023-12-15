@@ -3,28 +3,61 @@ package main
 import (
 	"fmt"
 	"net"
+	"time"
 )
 
-func handleMessage(m *Message) (Message, error) {
-	if m.Op != BOOTREQUEST {
-		return Message{}, fmt.Errorf("NOT BOOT REQUEST")
+type DHCPServer struct {
+	config    *Config
+	allocator *Allocator
+}
+
+func NewDHCPServer(config *Config, allocator *Allocator) DHCPServer {
+	return DHCPServer{
+		config:    config,
+		allocator: allocator,
 	}
+}
+
+func (ds *DHCPServer) Handle(m *Message) (Message, error) {
+	response := Message{}
+
+	if m.Op != BOOTREQUEST {
+		return response, fmt.Errorf("not a boot request")
+	}
+
+	response.Op = BOOTREPLY
+	response.Htype = m.Htype
+	response.Hlen = m.Hlen
+	response.Hops = m.Hops
+	response.Xid = m.Xid
+	response.Secs = m.Secs
+	response.Flags = m.Flags
+
+	response.Siaddr = ds.config.ServerIP
+	response.Giaddr = net.IPv4zero
+	response.Chaddr = m.Chaddr
+
+	response.Sname = m.Sname
+	response.File = m.File
+	response.MagicCookie = m.MagicCookie
+
+	response.Options = DhcpOpts{}
+	response.Options.AddServerIP(ds.config.ServerIP)
 
 	dhcp_message_type := DHCPMessageType(0)
 	for _, option := range m.Options {
-		if option.Type == byte(DHCPMessageTypeOP) {
+		if option.Type == byte(MessageType) {
 			dhcp_message_type = DHCPMessageType(option.Data[0])
 		}
 	}
 
-	var response Message
 	var err error = nil
 
 	switch dhcp_message_type {
 	case DHCPDISCOVER:
-		response = handleDiscover(m)
+		ds.handleDiscover(m, &response)
 	case DHCPREQUEST:
-		response = handleRequest(m)
+		ds.handleRequest(m, &response)
 	// case DHCPDECLINE:
 	// 	fmt.Println("DHCPDECLINE")
 	// case DHCPRELEASE:
@@ -38,117 +71,62 @@ func handleMessage(m *Message) (Message, error) {
 		fmt.Println(m.Options)
 	}
 
+	response.Options.AddEnd()
+
 	return response, err
 }
 
-func handleDiscover(m *Message) Message {
-	response := Message{}
-
-	response.Op = BOOTREPLY
-	response.Htype = m.Htype
-	response.Hlen = m.Hlen
-	response.Hops = m.Hops
-	response.Xid = m.Xid
-	response.Secs = m.Secs
-	response.Flags = m.Flags
-
-	response.Ciaddr = net.IPv4(10, 10, 5, 2)
-	response.Yiaddr = net.IPv4(10, 10, 5, 2)
-	response.Siaddr = net.IPv4(10, 10, 5, 1)
-	response.Giaddr = net.IPv4(0, 0, 0, 0)
-	response.Chaddr = m.Chaddr
-
-	response.Sname = m.Sname
-	response.File = m.File
-	response.MagicCookie = m.MagicCookie
-
-	leaseTime := DHCPOption{
-		Type:   uint8(IPAddressLeaseTime),
-		Length: 4,
-		Data:   []uint8{},
+func (ds *DHCPServer) handleDiscover(m *Message, r *Message) {
+	ip, err := ds.allocator.GetAvailableIP(m.Chaddr)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
 	}
 
-	var hour uint32 = 1 * 5 * 60
-	leaseTime.Data = append(leaseTime.Data, byte(hour>>24))
-	leaseTime.Data = append(leaseTime.Data, byte(hour>>16))
-	leaseTime.Data = append(leaseTime.Data, byte(hour>>8))
-	leaseTime.Data = append(leaseTime.Data, byte(hour))
+	fmt.Println("available ip???:", ip)
 
-	messageType := DHCPOption{
-		Type:   uint8(DHCPMessageTypeOP),
-		Length: 1,
-		Data:   []uint8{uint8(DHCPOFFER)},
-	}
+	r.Ciaddr = ip
+	r.Yiaddr = ip
 
-	serverIP := DHCPOption{
-		Type:   uint8(ServerIdentifier),
-		Length: 4,
-		Data:   net.IPv4(10, 10, 5, 1)[12:],
-	}
+	options := DhcpOpts{}
+	options.AddLeaseTime(5)
+	options.AddMessageType(DHCPOFFER)
 
-	end := DHCPOption{
-		Type:   uint8(End),
-		Length: 0,
-		Data:   []uint8{},
-	}
-
-	response.Options = append(response.Options, leaseTime, messageType, serverIP, end)
-
-	return response
+	r.Options = append(r.Options, options...)
 }
 
-func handleRequest(m *Message) Message {
-	response := Message{}
+func (ds *DHCPServer) handleRequest(m *Message, r *Message) {
+	ip := net.IPv4zero
 
-	response.Op = BOOTREPLY
-	response.Htype = m.Htype
-	response.Hlen = m.Hlen
-	response.Hops = m.Hops
-	response.Xid = m.Xid
-	response.Secs = m.Secs
-	response.Flags = m.Flags
-
-	response.Ciaddr = net.IPv4(10, 10, 5, 2)
-	response.Yiaddr = net.IPv4(10, 10, 5, 2)
-	response.Siaddr = net.IPv4(10, 10, 5, 1)
-	response.Giaddr = net.IPv4(0, 0, 0, 0)
-	response.Chaddr = m.Chaddr
-
-	response.Sname = m.Sname
-	response.File = m.File
-	response.MagicCookie = m.MagicCookie
-
-	leaseTime := DHCPOption{
-		Type:   uint8(IPAddressLeaseTime),
-		Length: 4,
-		Data:   []uint8{},
+	for _, option := range m.Options {
+		if option.Type == byte(RequestedIP) {
+			ip = net.IP(option.Data)
+			break
+		}
 	}
 
-	var hour uint32 = 1 * 5 * 60
-	leaseTime.Data = append(leaseTime.Data, byte(hour>>24))
-	leaseTime.Data = append(leaseTime.Data, byte(hour>>16))
-	leaseTime.Data = append(leaseTime.Data, byte(hour>>8))
-	leaseTime.Data = append(leaseTime.Data, byte(hour))
-
-	messageType := DHCPOption{
-		Type:   uint8(DHCPMessageTypeOP),
-		Length: 1,
-		Data:   []uint8{uint8(DHCPACK)},
+	network := net.IPNet{
+		IP:   ds.config.NetworkID,
+		Mask: ds.config.Subnet(),
 	}
 
-	serverIP := DHCPOption{
-		Type:   uint8(ServerIdentifier),
-		Length: 4,
-		Data:   net.IPv4(10, 10, 5, 1)[12:],
+	if !network.Contains(ip) {
+		r.Options.AddMessageType(DHCPNAK)
+		return
 	}
 
-	end := DHCPOption{
-		Type:   uint8(End),
-		Length: 0,
-		Data:   []uint8{},
+	err := ds.allocator.Allocate("", m.Chaddr, ip, time.Now().Add(time.Hour).Unix())
+	if err != nil {
+		r.Options.AddMessageType(DHCPNAK)
+		return
 	}
 
-	response.Options = append(response.Options, leaseTime, messageType, serverIP, end)
+	r.Ciaddr = ip
+	r.Yiaddr = ip
 
-	return response
+	r.Options.AddLeaseTime(60 * 60)
+	r.Options.AddMessageType(DHCPACK)
+
+	r.Options.AddNetmask(ds.config.Netmask)
+	// r.Options.AddRouter(ds.config.RouterIP)
 }
