@@ -33,6 +33,9 @@ func (ds *DHCPServer) Handle(m *Message) (Message, error) {
 	response.Secs = m.Secs
 	response.Flags = m.Flags
 
+	response.Ciaddr = net.IPv4zero
+	response.Yiaddr = net.IPv4zero
+
 	response.Siaddr = ds.config.net.IP
 	response.Giaddr = net.IPv4zero
 	response.Chaddr = m.Chaddr
@@ -80,15 +83,12 @@ func (ds *DHCPServer) handleDiscover(m *Message, r *Message) {
 	r.Ciaddr = ip
 	r.Yiaddr = ip
 
-	options := DhcpOpts{}
-	options.AddLeaseTime(5)
-	options.AddMessageType(DHCPOFFER)
-
-	r.Options = append(r.Options, options...)
+	r.Options.AddLeaseTime(5)
+	r.Options.AddMessageType(DHCPOFFER)
 }
 
 func (ds *DHCPServer) handleRequest(m *Message, r *Message) {
-	ip := net.IPv4zero
+	ip := m.Ciaddr
 
 	for _, option := range m.Options {
 		if option.Type == byte(Opts_RequestedIP) {
@@ -102,7 +102,7 @@ func (ds *DHCPServer) handleRequest(m *Message, r *Message) {
 		return
 	}
 
-	err := ds.allocator.Allocate("", m.Chaddr, ip, time.Now().Add(time.Hour).Unix())
+	err := ds.allocator.Allocate(m.Options.GetHostName(), m.Chaddr, ip, time.Now().Add(time.Hour).Unix())
 	if err != nil {
 		r.Options.AddMessageType(DHCPNAK)
 		return

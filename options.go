@@ -19,6 +19,7 @@ const (
 const (
 	Opts_NetMask              uint8 = 1
 	Opts_RouterIP             uint8 = 3
+	Opts_HostName             uint8 = 12
 	Opts_RequestedIP          uint8 = 50
 	Opts_IPLeaseTime          uint8 = 51
 	Opts_OptionOverload       uint8 = 52
@@ -69,4 +70,23 @@ func (opts *DhcpOpts) AddNetmask(netmask net.IPMask) {
 
 func (opts *DhcpOpts) AddRouter(ip net.IP) {
 	*opts = append(*opts, NewDhcpOpt(Opts_RouterIP, 4, ip.To4()...))
+}
+
+func (opts *DhcpOpts) GetHostName() string {
+	for _, opt := range *opts {
+		if opt.Type == Opts_HostName {
+			return string(opt.Data)
+		}
+	}
+	return ""
+}
+
+func (opts *DhcpOpts) GetLeaseTime() uint32 {
+	for _, opt := range *opts {
+		if opt.Type == Opts_IPLeaseTime {
+			return uint32(opt.Data[0])<<24 | uint32(opt.Data[1])<<16 | uint32(opt.Data[2])<<8 | uint32(opt.Data[3])
+		}
+	}
+
+	return 0
 }
