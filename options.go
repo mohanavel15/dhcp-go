@@ -25,7 +25,7 @@ const (
 	Opts_MessageType          uint8 = 53
 	Opts_ServerIdentifier     uint8 = 54
 	Opts_ParameterRequestList uint8 = 55
-	Opts_MessageOP            uint8 = 56
+	Opts_Message              uint8 = 56
 	Opts_MaximumMessageSize   uint8 = 57
 	Opts_ClientIdentifier     uint8 = 61
 	Opts_End                  uint8 = 255
@@ -66,6 +66,7 @@ func (opts *DhcpOpts) AddEnd() {
 func (opts *DhcpOpts) AddNetmask(netmask net.IPMask) {
 	*opts = append(*opts, NewDhcpOpt(Opts_NetMask, 4, netmask...))
 }
+
 func (opts *DhcpOpts) AddRouter(ip net.IP) {
 	*opts = append(*opts, NewDhcpOpt(Opts_RouterIP, 4, ip.To4()...))
 }

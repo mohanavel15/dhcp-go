@@ -8,7 +8,6 @@ import (
 )
 
 type Config struct {
-	Hostname  string     `json:"hostname"`
 	Interface string     `json:"interface"`
 	net       *net.IPNet `json:"-"`
 	LeaseTime uint32     `json:"lease_time"`

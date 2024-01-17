@@ -11,8 +11,6 @@ func main() {
 	config := LoadConfig("./dhcp-config.json")
 	config.Init()
 
-	fmt.Println(config.net.IP, config.net.Mask)
-
 	broadcast := make(net.IP, len(config.net.IP))
 	copy(broadcast, config.net.IP) // For IPv4 prefix used by go
 
