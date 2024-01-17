@@ -46,7 +46,7 @@ func (ds *DHCPServer) Handle(m *Message) (Message, error) {
 
 	dhcp_message_type := DHCPMessageType(0)
 	for _, option := range m.Options {
-		if option.Type == byte(MessageType) {
+		if option.Type == byte(Opts_MessageType) {
 			dhcp_message_type = DHCPMessageType(option.Data[0])
 		}
 	}
@@ -58,12 +58,6 @@ func (ds *DHCPServer) Handle(m *Message) (Message, error) {
 		ds.handleDiscover(m, &response)
 	case DHCPREQUEST:
 		ds.handleRequest(m, &response)
-	// case DHCPDECLINE:
-	// 	fmt.Println("DHCPDECLINE")
-	// case DHCPRELEASE:
-	// 	fmt.Println("DHCPRELEASE")
-	// case DHCPINFORM:
-	// 	fmt.Println("DHCPINFORM")
 	default:
 		err = fmt.Errorf("unknown DHCP message type")
 		fmt.Println("Unknown DHCP message type")
@@ -99,14 +93,14 @@ func (ds *DHCPServer) handleRequest(m *Message, r *Message) {
 	ip := net.IPv4zero
 
 	for _, option := range m.Options {
-		if option.Type == byte(RequestedIP) {
+		if option.Type == byte(Opts_RequestedIP) {
 			ip = net.IP(option.Data)
 			break
 		}
 	}
 
 	network := net.IPNet{
-		IP:   ds.config.NetworkID,
+		IP:   ds.config.ServerIP,
 		Mask: ds.config.Subnet(),
 	}
 

@@ -105,7 +105,7 @@ func UnpackMessage(buf []byte) Message {
 	for idx < len(buf) {
 		option := DhcpOpt{}
 		option.Type = buf[idx]
-		if option.Type == uint8(End) {
+		if option.Type == uint8(Opts_End) {
 			break
 		}
 
