@@ -39,10 +39,8 @@ func (a *Allocator) GetAvailableIP(mac net.HardwareAddr) (net.IP, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
-	fmt.Println(a.Allocated)
 	for _, c := range a.Allocated {
 		if c.MAC.String() == mac.String() {
-			fmt.Println("found:", c)
 			return c.IP, nil
 		}
 	}
@@ -53,7 +51,6 @@ func (a *Allocator) GetAvailableIP(mac net.HardwareAddr) (net.IP, error) {
 
 	ip := a.AvailableIPs[0]
 	a.AvailableIPs = a.AvailableIPs[1:]
-	fmt.Println(a.AvailableIPs)
 
 	a.Allocated = append(a.Allocated, Client{
 		MAC:     mac,

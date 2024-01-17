@@ -58,7 +58,13 @@ func main() {
 			continue
 		}
 
-		log.Println(res.Chaddr, "->", res.Ciaddr)
+		logmsg := fmt.Sprintf("IP: %s is allocated to %s", res.Ciaddr.String(), res.Chaddr.String())
+		if msg.Options.GetHostName() != "" {
+			logmsg += fmt.Sprintf("(%s)", msg.Options.GetHostName())
+		}
+		logmsg += fmt.Sprintf(" for %d seconds", res.Options.GetLeaseTime())
+		log.Println(logmsg)
+
 		resbuf := PackMessage(res)
 
 		copy(addr.IP, broadcast)
