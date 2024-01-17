@@ -63,8 +63,8 @@ func (opts *DhcpOpts) AddEnd() {
 	*opts = append(*opts, NewDhcpOpt(Opts_End, 0))
 }
 
-func (opts *DhcpOpts) AddNetmask(netmask net.IP) {
-	*opts = append(*opts, NewDhcpOpt(Opts_NetMask, 4, netmask.To4()...))
+func (opts *DhcpOpts) AddNetmask(netmask net.IPMask) {
+	*opts = append(*opts, NewDhcpOpt(Opts_NetMask, 4, netmask...))
 }
 func (opts *DhcpOpts) AddRouter(ip net.IP) {
 	*opts = append(*opts, NewDhcpOpt(Opts_RouterIP, 4, ip.To4()...))

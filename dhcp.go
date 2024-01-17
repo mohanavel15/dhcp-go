@@ -33,7 +33,7 @@ func (ds *DHCPServer) Handle(m *Message) (Message, error) {
 	response.Secs = m.Secs
 	response.Flags = m.Flags
 
-	response.Siaddr = ds.config.ServerIP
+	response.Siaddr = ds.config.net.IP
 	response.Giaddr = net.IPv4zero
 	response.Chaddr = m.Chaddr
 
@@ -42,7 +42,7 @@ func (ds *DHCPServer) Handle(m *Message) (Message, error) {
 	response.MagicCookie = m.MagicCookie
 
 	response.Options = DhcpOpts{}
-	response.Options.AddServerIP(ds.config.ServerIP)
+	response.Options.AddServerIP(ds.config.net.IP)
 
 	dhcp_message_type := DHCPMessageType(0)
 	for _, option := range m.Options {
@@ -77,8 +77,6 @@ func (ds *DHCPServer) handleDiscover(m *Message, r *Message) {
 		return
 	}
 
-	fmt.Println("available ip???:", ip)
-
 	r.Ciaddr = ip
 	r.Yiaddr = ip
 
@@ -99,12 +97,7 @@ func (ds *DHCPServer) handleRequest(m *Message, r *Message) {
 		}
 	}
 
-	network := net.IPNet{
-		IP:   ds.config.ServerIP,
-		Mask: ds.config.Subnet(),
-	}
-
-	if !network.Contains(ip) {
+	if !ds.config.net.Contains(ip) {
 		r.Options.AddMessageType(DHCPNAK)
 		return
 	}
@@ -118,9 +111,8 @@ func (ds *DHCPServer) handleRequest(m *Message, r *Message) {
 	r.Ciaddr = ip
 	r.Yiaddr = ip
 
-	r.Options.AddLeaseTime(60 * 60)
+	r.Options.AddLeaseTime(ds.config.LeaseTime)
 	r.Options.AddMessageType(DHCPACK)
 
-	r.Options.AddNetmask(ds.config.Netmask)
-	// r.Options.AddRouter(ds.config.RouterIP)
+	r.Options.AddNetmask(ds.config.net.Mask)
 }

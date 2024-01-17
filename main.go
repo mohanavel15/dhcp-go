@@ -9,6 +9,16 @@ import (
 
 func main() {
 	config := LoadConfig("./dhcp-config.json")
+	config.Init()
+
+	fmt.Println(config.net.IP, config.net.Mask)
+
+	broadcast := make(net.IP, len(config.net.IP))
+	copy(broadcast, config.net.IP) // For IPv4 prefix used by go
+
+	for i := range config.net.Mask {
+		broadcast[12+i] = config.net.IP[12+i] | ^config.net.Mask[i]
+	}
 
 	allocator := NewAllocator([]net.IP{
 		net.IPv4(10, 10, 10, 2),
@@ -20,20 +30,19 @@ func main() {
 
 	DhcpServer := NewDHCPServer(&config, allocator)
 
-	addr, err := net.ResolveUDPAddr("udp", ":67")
-	if err != nil {
-		fmt.Println("Error resolving UDP address:", err)
-		os.Exit(1)
+	addr := net.UDPAddr{
+		IP:   net.IPv4zero,
+		Port: 67,
 	}
 
-	conn, err := net.ListenUDP("udp", addr)
+	conn, err := net.ListenUDP("udp", &addr)
 	if err != nil {
 		fmt.Println("Error listening on UDP:", err)
 		os.Exit(1)
 	}
 	defer conn.Close()
 
-	fmt.Println("UDP server is listening on port 67...")
+	fmt.Println("Server is listening on port:", addr.String())
 
 	for {
 		buffer := make([]byte, 576)
@@ -44,7 +53,6 @@ func main() {
 		}
 
 		msg := UnpackMessage(buffer[:n])
-		// fmt.Println(msg.String())
 
 		res, err := DhcpServer.Handle(&msg)
 		if err != nil {
@@ -52,13 +60,10 @@ func main() {
 			continue
 		}
 
-		log.Printf("%s allocated to %s for %ds\n", res.Yiaddr.String(), res.Chaddr.String(), config.LeaseTime)
+		log.Println(res.Chaddr, "->", res.Ciaddr)
 		resbuf := PackMessage(res)
 
-		if addr.IP.IsUnspecified() {
-			addr.IP = net.IPv4(10, 255, 255, 255)
-		}
-
+		copy(addr.IP, broadcast)
 		conn.WriteToUDP(resbuf, addr)
 	}
 }

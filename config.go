@@ -8,17 +8,24 @@ import (
 )
 
 type Config struct {
-	Hostname  string `json:"hostname"`
-	ServerIP  net.IP `json:"sever_ip"`
-	RouterIP  net.IP `json:"router_ip"`
-	NetworkID net.IP `json:"network_id"`
-	Netmask   net.IP `json:"netmask"`
-	Dns       net.IP `json:"dns"`
-	LeaseTime uint32 `json:"lease_time"`
+	Hostname  string     `json:"hostname"`
+	Interface string     `json:"interface"`
+	net       *net.IPNet `json:"-"`
+	LeaseTime uint32     `json:"lease_time"`
 }
 
-func (c *Config) Subnet() net.IPMask {
-	return net.IPMask(c.Netmask.To4())
+func (c *Config) Init() {
+	itf, err := net.InterfaceByName(c.Interface)
+	if err != nil {
+		log.Fatalf("Error Getting Interface: %s\n", err.Error())
+	}
+
+	addrs, err := itf.Addrs()
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+
+	c.net = addrs[0].(*net.IPNet)
 }
 
 func LoadConfig(path string) Config {
