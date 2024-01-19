@@ -1,9 +1,18 @@
 # DHCP
-Implementation of RFC 2131 (work-in-progress)
+Implementation of RFC 2131
 
 [RFC 2131 - Dynamic Host Configuration Protocol](https://www.rfc-editor.org/rfc/rfc2131)
 
 [RFC 1533 - DHCP Options and BOOTP Vendor Extensions](https://www.rfc-editor.org/rfc/rfc1533)
+
+- [X] DHCP DISCOVER
+- [X] DHCP OFFER
+- [X] DHCP REQUEST
+- [X] DHCP ACK
+- [X] DHCP NAK
+- [ ] DHCP DECLINE
+- [ ] DHCP RELEASE
+- [ ] DHCP INFORM
 
 # How to use
 
