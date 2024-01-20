@@ -18,12 +18,15 @@ func main() {
 		broadcast[12+i] = config.net.IP[12+i] | ^config.net.Mask[i]
 	}
 
-	allocator := NewAllocator([]net.IP{
-		net.IPv4(10, 10, 10, 2),
-		net.IPv4(10, 10, 10, 3),
-		net.IPv4(10, 10, 10, 4),
-		net.IPv4(10, 10, 10, 5),
-	})
+	ips, err := GetIPs(config.net)
+	if err != nil {
+		fmt.Println("Error getting IPs:", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(ips)
+
+	allocator := NewAllocator(ips)
 	go allocator.Clock()
 
 	DhcpServer := NewDHCPServer(&config, allocator)

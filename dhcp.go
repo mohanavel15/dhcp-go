@@ -115,4 +115,5 @@ func (ds *DHCPServer) handleRequest(m *Message, r *Message) {
 	r.Options.AddMessageType(DHCPACK)
 
 	r.Options.AddNetmask(ds.config.net.Mask)
+	// r.Options.AddRouter(ds.config.net.IP)
 }
